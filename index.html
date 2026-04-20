@@ -1,0 +1,450 @@
+import React, { useState, useEffect } from 'react';
+import { ChevronRight, ChevronLeft, RotateCcw, AlertOctagon, HeartHandshake, Frown, Clock, ShieldAlert, Sparkles, CheckCircle2, XCircle, Star, Trophy, Award, Heart, Volume2, VolumeX } from 'lucide-react';
+
+export default function App() {
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [fade, setFade] = useState(false);
+  
+  // Game state
+  const [completedGames, setCompletedGames] = useState([]); // Array of slide IDs where game is beaten
+  const [feedback, setFeedback] = useState({ status: null, msg: '' }); 
+  const [tapSelections, setTapSelections] = useState([]); // Track selected valid items in tap game
+  const [wrongTapIndex, setWrongTapIndex] = useState(null); // Momentary shake for wrong tap
+  const [isComplete, setIsComplete] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+
+  // Trigger fade-in animation on slide change
+  useEffect(() => {
+    setFade(true);
+    const timer = setTimeout(() => setFade(false), 400);
+    return () => clearTimeout(timer);
+  }, [currentSlide, isComplete]);
+
+  // Cancel speech when slide changes or component unmounts
+  useEffect(() => {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+    }
+    return () => {
+      if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    };
+  }, [currentSlide, isComplete]);
+
+  const toggleSpeech = () => {
+    if (!('speechSynthesis' in window)) {
+      console.warn("Text-to-speech not supported in this browser.");
+      return;
+    }
+
+    if (isSpeaking) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+    } else {
+      const current = storySlides[currentSlide];
+      const textToSpeak = `${current.title}. ${current.text}`;
+      const utterance = new SpeechSynthesisUtterance(textToSpeak);
+      utterance.rate = 0.85; // Slightly slower for better comprehension
+      utterance.pitch = 1.1; // Slightly friendlier pitch
+      utterance.onend = () => setIsSpeaking(false);
+      utterance.onerror = () => setIsSpeaking(false);
+      
+      window.speechSynthesis.speak(utterance);
+      setIsSpeaking(true);
+    }
+  };
+
+  const storySlides = [
+    {
+      id: 0,
+      title: "What happened?",
+      emoji: "😠",
+      icon: <AlertOctagon size={48} className="text-red-600 mb-3" />,
+      text: "Eamonn was playing, but then he made a bad choice. Eamonn hit and scratched a friend.",
+      bgColor: "bg-red-50",
+      borderColor: "border-red-200",
+      textColor: "text-red-900",
+      game: null
+    },
+    {
+      id: 1,
+      title: "How did the friend feel?",
+      emoji: "😢",
+      icon: <Frown size={48} className="text-blue-600 mb-3" />,
+      text: "Ouch! That really hurt. Let's find out how the friend felt...",
+      bgColor: "bg-blue-50",
+      borderColor: "border-blue-200",
+      textColor: "text-blue-900",
+      game: {
+        type: "quiz",
+        question: "How did the friend feel after being hit?",
+        choices: [
+          { text: "Happy and excited", isCorrect: false, feedback: "Try again! Hitting hurts." },
+          { text: "Sad and hurt", isCorrect: true, feedback: "Yes! The friend felt very sad and hurt. 💙" },
+          { text: "Hungry", isCorrect: false, feedback: "Try again!" },
+          { text: "Sleepy", isCorrect: false, feedback: "Try again!" }
+        ]
+      }
+    },
+    {
+      id: 2,
+      title: "Is hitting okay?",
+      emoji: "🚫",
+      icon: <ShieldAlert size={48} className="text-orange-600 mb-3" />,
+      text: "Hitting and scratching is NEVER funny or a joke. It makes friends feel unsafe.",
+      bgColor: "bg-orange-50",
+      borderColor: "border-orange-200",
+      textColor: "text-orange-900",
+      game: {
+        type: "quiz",
+        question: "When is it okay to hit a friend?",
+        choices: [
+          { text: "When you're angry", isCorrect: false, feedback: "No! We never hit, even when angry. Use words!" },
+          { text: "When playing a game", isCorrect: false, feedback: "No! Even in games, hitting hurts." },
+          { text: "Never — it hurts", isCorrect: true, feedback: "That's right! We NEVER hit. 🌟" },
+          { text: "When they take a toy", isCorrect: false, feedback: "No! Ask a grown-up for help instead." }
+        ]
+      }
+    },
+    {
+      id: 3,
+      title: "Time Out!",
+      emoji: "⏳",
+      icon: <Clock size={48} className="text-purple-600 mb-3" />,
+      text: "Because Eamonn hit and scratched, he gets a Time Out. He must stand still inside the Time Out circle. He cannot move around, and he cannot laugh. He needs to calm down.",
+      bgColor: "bg-purple-50",
+      borderColor: "border-purple-200",
+      textColor: "text-purple-900",
+      visual: (
+        <div className="flex flex-col sm:flex-row gap-5 justify-center items-center my-4 bg-white/60 p-4 rounded-3xl border-2 border-purple-100 shadow-sm w-full max-w-md">
+          <div className="relative flex-shrink-0 flex flex-col items-center justify-center w-28 h-28 border-[5px] border-dashed border-red-500 rounded-full bg-red-50 shadow-inner">
+            <span className="text-[3.5rem] leading-none">🧍</span>
+          </div>
+          <div className="flex flex-col gap-2.5">
+            <div className="flex items-center gap-3 text-red-700 font-extrabold bg-white px-4 py-2 rounded-xl shadow-sm border-2 border-red-100">
+              <span className="text-2xl">🚫 🏃</span> No Moving
+            </div>
+            <div className="flex items-center gap-3 text-red-700 font-extrabold bg-white px-4 py-2 rounded-xl shadow-sm border-2 border-red-100">
+              <span className="text-2xl">🚫 😂</span> No Laughing
+            </div>
+          </div>
+        </div>
+      ),
+      game: {
+        type: "quiz",
+        question: "What are the rules for Time Out?",
+        choices: [
+          { text: "Run around and laugh", isCorrect: false, feedback: "No! We must stand still in the circle." },
+          { text: "Stand still and calm down", isCorrect: true, feedback: "Yes! Time Out helps us calm our body. 💜" },
+          { text: "Watch TV", isCorrect: false, feedback: "No, it's quiet thinking time." },
+          { text: "Play alone", isCorrect: false, feedback: "No, toys are for after Time Out." }
+        ]
+      }
+    },
+    {
+      id: 4,
+      title: "Gentle Hands!",
+      emoji: "🤝",
+      icon: <HeartHandshake size={48} className="text-green-600 mb-3" />,
+      text: "We use GENTLE HANDS. If frustrated, we use our words or ask a grown-up.",
+      bgColor: "bg-green-50",
+      borderColor: "border-green-200",
+      textColor: "text-green-900",
+      game: {
+        type: "tap",
+        instruction: "Tap all the GENTLE HANDS choices! 🙌",
+        items: [
+          { label: "🤝 Give a high five", good: true },
+          { label: "👋 Wave hello", good: true },
+          { label: "👊 Punch a friend", good: false },
+          { label: "🤗 Give a hug", good: true },
+          { label: "💢 Scratch someone", good: false },
+          { label: "✋ Gentle pat", good: true }
+        ]
+      }
+    }
+  ];
+
+  const current = storySlides[currentSlide];
+  const isGameDone = !current.game || completedGames.includes(currentSlide);
+  const totalStars = storySlides.filter(s => s.game).length;
+  const earnedStars = completedGames.length;
+
+  const handleQuizChoice = (choice) => {
+    if (isGameDone) return;
+    
+    if (choice.isCorrect) {
+      setFeedback({ status: 'correct', msg: choice.feedback });
+      setCompletedGames([...completedGames, currentSlide]);
+    } else {
+      setFeedback({ status: 'wrong', msg: choice.feedback });
+      setTimeout(() => setFeedback({ status: null, msg: '' }), 2000);
+    }
+  };
+
+  const handleTapChoice = (index, isGood) => {
+    if (isGameDone || tapSelections.includes(index)) return;
+
+    if (isGood) {
+      const newSelections = [...tapSelections, index];
+      setTapSelections(newSelections);
+      
+      const totalGoodItems = current.game.items.filter(item => item.good).length;
+      if (newSelections.length === totalGoodItems) {
+        setCompletedGames([...completedGames, currentSlide]);
+        setFeedback({ status: 'correct', msg: "🌟 Amazing! You found all the gentle choices!" });
+      } else {
+        setFeedback({ status: 'correct', msg: "Good job! Keep finding the gentle hands." });
+      }
+    } else {
+      setWrongTapIndex(index);
+      setFeedback({ status: 'wrong', msg: "Oops! That hurts friends. Try a gentle choice." });
+      setTimeout(() => {
+        setWrongTapIndex(null);
+        setFeedback({ status: null, msg: '' });
+      }, 1000);
+    }
+  };
+
+  const nextSlide = () => {
+    if (!isGameDone) return;
+    if (currentSlide < storySlides.length - 1) {
+      setCurrentSlide(currentSlide + 1);
+      resetSlideState();
+    } else {
+      setIsComplete(true);
+    }
+  };
+
+  const prevSlide = () => {
+    if (currentSlide > 0) {
+      setCurrentSlide(currentSlide - 1);
+      resetSlideState();
+    }
+  };
+
+  const resetSlideState = () => {
+    setFeedback({ status: null, msg: '' });
+    setTapSelections([]);
+    setWrongTapIndex(null);
+  };
+
+  const restartStory = () => {
+    setCurrentSlide(0);
+    setCompletedGames([]);
+    setIsComplete(false);
+    resetSlideState();
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4 font-sans text-gray-800">
+      <div className="max-w-2xl w-full bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col h-[750px] relative">
+        
+        {/* Header */}
+        <div className="bg-indigo-600 text-white p-5 text-center shadow-md z-10">
+          <h1 className="text-2xl font-bold flex items-center justify-center gap-2">
+            <Sparkles className="text-yellow-300 animate-pulse" />
+            Playing Nicely Social Story
+            <Sparkles className="text-yellow-300 animate-pulse" />
+          </h1>
+          
+          {/* Star Progress bar */}
+          <div className="flex justify-center gap-2 mt-3">
+            {[...Array(totalStars)].map((_, i) => (
+              <Star 
+                key={i} 
+                className={`transition-all duration-500 ${i < earnedStars ? 'fill-yellow-400 text-yellow-400 scale-110 drop-shadow-[0_0_8px_rgba(250,204,21,0.8)]' : 'text-indigo-400/50 fill-transparent'}`} 
+                size={28} 
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Main Content Area */}
+        {isComplete ? (
+          /* Completion Screen */
+          <div className={`flex-grow flex flex-col items-center justify-center p-8 bg-green-50 transition-opacity duration-500 ${fade ? 'opacity-0' : 'opacity-100'}`}>
+            <div className="animate-bounce mb-6">
+              <Trophy size={100} className="text-yellow-500 drop-shadow-xl" />
+            </div>
+            <h2 className="text-4xl font-extrabold text-green-800 mb-2 text-center">Amazing job, Eamonn!</h2>
+            <p className="text-xl text-green-700 text-center mb-8 font-medium">You finished the story and made great choices!</p>
+            
+            <div className="flex flex-wrap justify-center gap-3 mb-10">
+              <span className="flex items-center gap-2 bg-indigo-100 text-indigo-800 px-4 py-2 rounded-full font-bold text-lg border-2 border-indigo-200 shadow-sm"><Star size={20} className="fill-yellow-400 text-yellow-500"/> {earnedStars} Stars Earned</span>
+              <span className="flex items-center gap-2 bg-green-100 text-green-800 px-4 py-2 rounded-full font-bold text-lg border-2 border-green-200 shadow-sm"><HeartHandshake size={20}/> Gentle Hands</span>
+              <span className="flex items-center gap-2 bg-blue-100 text-blue-800 px-4 py-2 rounded-full font-bold text-lg border-2 border-blue-200 shadow-sm"><Heart size={20} className="fill-blue-500 text-blue-500"/> Good Friend</span>
+            </div>
+
+            <button
+              onClick={restartStory}
+              className="flex items-center gap-2 px-10 py-4 rounded-2xl font-bold text-xl bg-indigo-600 text-white hover:bg-indigo-700 active:scale-95 shadow-lg hover:shadow-xl transition-all"
+            >
+              <RotateCcw size={28} /> Read Again
+            </button>
+          </div>
+        ) : (
+          /* Story Slide */
+          <div className={`flex-grow flex flex-col p-6 transition-colors duration-500 overflow-y-auto ${current.bgColor}`}>
+            <div className={`w-full flex flex-col items-center transform transition-all duration-500 ${fade ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'}`}>
+              
+              {/* Top Story Portion */}
+              <div className="text-7xl mb-1 mt-2 animate-bounce">
+                {current.emoji}
+              </div>
+              <h2 className={`text-3xl font-extrabold mb-3 text-center ${current.textColor}`}>
+                {current.title}
+              </h2>
+              
+              {/* Read Aloud Button */}
+              <button
+                onClick={toggleSpeech}
+                className={`mb-4 flex items-center gap-2 px-4 py-2 rounded-full font-bold transition-all ${
+                  isSpeaking 
+                    ? 'bg-indigo-100 text-indigo-700 ring-2 ring-indigo-300 animate-pulse' 
+                    : 'bg-white text-gray-600 border-2 border-gray-200 hover:bg-gray-50 hover:border-indigo-300 hover:text-indigo-600'
+                }`}
+              >
+                {isSpeaking ? <VolumeX size={20} /> : <Volume2 size={20} />}
+                {isSpeaking ? 'Stop Reading' : 'Read Aloud'}
+              </button>
+
+              {current.visual && current.visual}
+
+              <p className="text-xl text-gray-800 leading-relaxed font-semibold text-center max-w-lg mb-6 mt-2">
+                {current.text}
+              </p>
+
+              {/* Interactive Games */}
+              {current.game && (
+                <div className="w-full max-w-lg bg-white/80 backdrop-blur-sm p-5 rounded-2xl border-2 border-white shadow-sm mt-2">
+                  <h3 className="text-lg font-bold text-gray-700 text-center mb-4">{current.game.question || current.game.instruction}</h3>
+                  
+                  {/* Quiz Grid */}
+                  {current.game.type === 'quiz' && (
+                    <div className="grid grid-cols-2 gap-3">
+                      {current.game.choices.map((choice, idx) => {
+                        const isCorrectlySelected = isGameDone && choice.isCorrect;
+                        return (
+                          <button
+                            key={idx}
+                            onClick={() => handleQuizChoice(choice)}
+                            disabled={isGameDone}
+                            className={`p-3 rounded-xl border-2 font-bold text-base transition-all duration-300 flex flex-col items-center justify-center text-center leading-tight min-h-[80px]
+                              ${isCorrectlySelected 
+                                ? 'bg-green-100 border-green-500 text-green-800 shadow-md ring-2 ring-green-300 ring-offset-1 scale-105' 
+                                : isGameDone 
+                                  ? 'bg-gray-50 border-gray-200 text-gray-400 opacity-60' 
+                                  : 'bg-white border-gray-300 text-gray-700 hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-700'
+                              }
+                            `}
+                          >
+                            {choice.text}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+
+                  {/* Tap Choices */}
+                  {current.game.type === 'tap' && (
+                    <div className="flex flex-wrap justify-center gap-3">
+                      {current.game.items.map((item, idx) => {
+                        const isSelected = tapSelections.includes(idx);
+                        const isWrongShake = wrongTapIndex === idx;
+                        
+                        return (
+                          <button
+                            key={idx}
+                            onClick={() => handleTapChoice(idx, item.good)}
+                            disabled={isGameDone || isSelected}
+                            className={`px-4 py-3 rounded-xl border-2 font-bold text-lg transition-all duration-200 
+                              ${isSelected 
+                                ? 'bg-green-100 border-green-500 text-green-800 scale-110 shadow-md z-10 ring-2 ring-green-300 ring-offset-1' 
+                                : isWrongShake 
+                                  ? 'bg-red-100 border-red-500 text-red-800 animate-pulse scale-95' 
+                                  : isGameDone 
+                                    ? 'bg-gray-50 border-gray-200 text-gray-400 opacity-50 grayscale'
+                                    : 'bg-white border-gray-300 text-gray-700 hover:border-indigo-400 hover:scale-105 shadow-sm'
+                              }
+                            `}
+                          >
+                            {item.label}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+
+                  {/* Game Feedback Messages */}
+                  <div className="h-10 flex items-center justify-center mt-4">
+                    {feedback.status === 'wrong' && (
+                      <div className="flex items-center gap-2 text-red-600 font-bold bg-red-100 px-4 py-2 rounded-full animate-[pulse_0.5s_ease-in-out_2]">
+                        <XCircle size={20} /> {feedback.msg}
+                      </div>
+                    )}
+                    {feedback.status === 'correct' && (
+                      <div className="flex items-center gap-2 text-green-700 font-bold bg-green-100 px-4 py-2 rounded-full animate-bounce shadow-sm">
+                        <CheckCircle2 size={20} /> {feedback.msg}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+            </div>
+          </div>
+        )}
+
+        {/* Bottom Navigation & Progress (Hidden on complete screen) */}
+        {!isComplete && (
+          <div className="bg-white p-5 border-t border-gray-200">
+            
+            {/* Progress Dots */}
+            <div className="flex justify-center gap-2 mb-4">
+              {storySlides.map((slide, index) => (
+                <div 
+                  key={slide.id} 
+                  className={`h-2.5 rounded-full transition-all duration-500 ${
+                    index === currentSlide ? 'bg-indigo-600 w-8' : 'bg-gray-300 w-2.5'
+                  }`}
+                />
+              ))}
+            </div>
+
+            {/* Buttons */}
+            <div className="flex justify-between items-center">
+              <button
+                onClick={prevSlide}
+                disabled={currentSlide === 0}
+                className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-lg transition-all ${
+                  currentSlide === 0 
+                    ? 'opacity-0 cursor-default' 
+                    : 'bg-white border-2 border-indigo-600 text-indigo-600 hover:bg-indigo-50 active:scale-95 shadow-sm'
+                }`}
+              >
+                <ChevronLeft size={24} /> Back
+              </button>
+
+              <button
+                onClick={nextSlide}
+                disabled={!isGameDone}
+                className={`flex items-center gap-2 px-8 py-3 rounded-xl font-bold text-lg transition-all group ${
+                  !isGameDone
+                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                    : currentSlide === storySlides.length - 1
+                      ? 'bg-green-500 text-white hover:bg-green-600 shadow-md animate-[bounce_2s_infinite] active:scale-95'
+                      : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-md active:scale-95'
+                }`}
+              >
+                {currentSlide === storySlides.length - 1 ? 'Finish' : 'Next'} 
+                {currentSlide !== storySlides.length - 1 && <ChevronRight size={24} className={isGameDone ? "group-hover:translate-x-1 transition-transform" : ""} />}
+              </button>
+            </div>
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+}
