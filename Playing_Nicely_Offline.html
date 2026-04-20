@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Playing Nicely - Social Story (Offline)</title>
+<style>
+:root { --primary: #4f46e5; --bg: #f3f4f6; --text: #1f2937; }
+body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 1rem; background: var(--bg); color: var(--text); display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+.app { background: white; max-width: 600px; width: 100%; border-radius: 1.5rem; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); overflow: hidden; display: flex; flex-direction: column; min-height: 650px; }
+.header { background: var(--primary); color: white; padding: 1.5rem; text-align: center; font-size: 1.5rem; font-weight: bold; }
+.content { padding: 2rem; flex-grow: 1; display: flex; flex-direction: column; align-items: center; text-align: center; }
+.emoji { font-size: 5.5rem; margin-bottom: 0.5rem; animation: bounce 2s infinite; }
+@keyframes bounce { 0%, 100% { transform: translateY(-5%); } 50% { transform: translateY(0); } }
+.title { font-size: 2rem; font-weight: 800; margin-bottom: 0.5rem; }
+.btn-speech { background: #eef2ff; color: var(--primary); border: 2px solid #c7d2fe; padding: 0.5rem 1.25rem; border-radius: 2rem; font-size: 1rem; font-weight: bold; cursor: pointer; margin-bottom: 1rem; transition: all 0.2s; }
+.btn-speech:active { transform: scale(0.95); }
+.text { font-size: 1.25rem; line-height: 1.6; margin-bottom: 2rem; }
+.quiz { width: 100%; max-width: 450px; background: #f9fafb; padding: 1rem; border-radius: 1rem; border: 2px solid #e5e7eb; }
+.quiz-title { font-weight: bold; margin-bottom: 1rem; font-size: 1.1rem; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+.btn-quiz { padding: 0.75rem; border: 2px solid #e5e7eb; background: white; border-radius: 0.5rem; cursor: pointer; font-weight: bold; transition: all 0.2s; font-size: 1rem; }
+.btn-quiz:hover:not(:disabled) { border-color: var(--primary); background: #eef2ff; }
+.btn-quiz.correct { background: #dcfce7; border-color: #22c55e; color: #166534; }
+.btn-quiz.wrong { background: #fee2e2; border-color: #ef4444; color: #991b1b; }
+.nav { display: flex; justify-content: space-between; padding: 1.5rem; background: #f9fafb; border-top: 1px solid #e5e7eb; }
+.btn { padding: 0.75rem 1.5rem; border-radius: 0.75rem; border: none; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: all 0.2s; }
+.btn-primary { background: var(--primary); color: white; }
+.btn-secondary { background: white; color: var(--primary); border: 2px solid var(--primary); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.feedback { margin-top: 1rem; font-weight: bold; min-height: 1.5rem; display: flex; justify-content: center; align-items: center; gap: 0.5rem; }
+.circle { width: 100px; height: 100px; border: 5px dashed #ef4444; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 3rem; margin: 0 auto 1rem; background: #fef2f2; }
+.dots { display: flex; justify-content: center; gap: 0.5rem; padding-bottom: 1rem; background: #f9fafb; }
+.dot { height: 10px; width: 10px; background: #d1d5db; border-radius: 50%; transition: all 0.3s; }
+.dot.active { background: var(--primary); width: 30px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">✨ Playing Nicely Social Story ✨</div>
+  <div class="content" id="content"></div>
+  <div class="dots" id="dots"></div>
+  <div class="nav" id="nav">
+    <button class="btn btn-secondary" id="btn-back" onclick="nav(-1)">Back</button>
+    <button class="btn btn-primary" id="btn-next" onclick="nav(1)">Next</button>
+  </div>
+</div>
+<script>
+const slides = [
+  {e:"😠", t:"What happened?", txt:"Eamonn was playing, but then he made a bad choice. Eamonn hit and scratched a friend."},
+  {e:"😢", t:"How did the friend feel?", txt:"Ouch! That really hurt. Let's find out how the friend felt...", q:"How did the friend feel after being hit?", opts:["Happy and excited", "Sad and hurt", "Hungry", "Sleepy"], ans:1},
+  {e:"🚫", t:"Is hitting okay?", txt:"Hitting and scratching is NEVER funny or a joke. It makes friends feel unsafe.", q:"When is it okay to hit a friend?", opts:["When you're angry", "When playing a game", "Never — it hurts", "When taking a toy"], ans:2},
+  {e:"⏳", t:"Time Out!", txt:"Because Eamonn hit and scratched, he gets a Time Out. He must stand still inside the Time Out circle. He cannot move around, and he cannot laugh. He needs to calm down.", visual: "<div class='circle'>🧍</div>", q:"What are the rules for Time Out?", opts:["Run around and laugh", "Stand still and calm down", "Watch TV", "Play alone"], ans:1},
+  {e:"🤝", t:"Gentle Hands!", txt:"We use GENTLE HANDS. If frustrated, we use our words or ask a grown-up.", tap:true, instruction:"Tap all the GENTLE HANDS choices! 🙌", items:[{l:"🤝 Give a high five",g:true},{l:"👋 Wave hello",g:true},{l:"👊 Punch a friend",g:false},{l:"🤗 Give a hug",g:true},{l:"💢 Scratch someone",g:false},{l:"✋ Gentle pat",g:true}]}
+];
+let curr = 0; let done = new Set(); let tapDone = new Set();
+function speak() {
+  if('speechSynthesis' in window) {
+    speechSynthesis.cancel();
+    const s = slides[curr];
+    const u = new SpeechSynthesisUtterance(s.t + ". " + s.txt);
+    u.rate = 0.85; u.pitch = 1.1;
+    speechSynthesis.speak(u);
+  }
+}
+function render() {
+  if('speechSynthesis' in window) speechSynthesis.cancel();
+  const s = slides[curr];
+  let html = '<div class="emoji">' + s.e + '</div><div class="title">' + s.t + '</div>';
+  if('speechSynthesis' in window) html += '<button class="btn-speech" onclick="speak()">🔊 Read Aloud</button>';
+  if(s.visual) html += s.visual;
+  html += '<div class="text">' + s.txt + '</div>';
+  
+  if(s.q) {
+    const isDone = done.has(curr);
+    html += '<div class="quiz"><div class="quiz-title">' + s.q + '</div><div class="grid">';
+    s.opts.forEach((opt, i) => {
+      const cls = isDone && i === s.ans ? 'correct' : '';
+      html += '<button class="btn-quiz ' + cls + '" onclick="guess(' + i + ')" ' + (isDone ? 'disabled' : '') + '>' + opt + '</button>';
+    });
+    html += '</div><div class="feedback" id="fb">' + (isDone ? '✅ Great job!' : '') + '</div></div>';
+    document.getElementById('btn-next').disabled = !isDone;
+  } else if(s.tap) {
+    const isDone = done.has(curr);
+    html += '<div class="quiz"><div class="quiz-title">' + s.instruction + '</div><div class="grid">';
+    s.items.forEach((item, i) => {
+      const isTapped = tapDone.has(i);
+      const cls = isTapped ? 'correct' : '';
+      html += '<button class="btn-quiz ' + cls + '" onclick="doTap(' + i + ',' + item.g + ')" ' + ((isDone||isTapped) ? 'disabled' : '') + '>' + item.l + '</button>';
+    });
+    html += '</div><div class="feedback" id="fb">' + (isDone ? '🌟 Amazing! You found them all!' : '') + '</div></div>';
+    document.getElementById('btn-next').disabled = !isDone;
+  } else {
+    document.getElementById('btn-next').disabled = false;
+  }
+  document.getElementById('content').innerHTML = html;
+  document.getElementById('btn-back').disabled = curr === 0;
+  document.getElementById('btn-next').innerText = curr === slides.length - 1 ? 'Finish' : 'Next';
+  
+  let dHtml = '';
+  slides.forEach((_, i) => { dHtml += '<div class="dot '+(i===curr?'active':'')+'"></div>'; });
+  document.getElementById('dots').innerHTML = dHtml;
+}
+function guess(i) {
+  const s = slides[curr];
+  const fb = document.getElementById('fb');
+  if(i === s.ans) {
+    done.add(curr);
+    render();
+  } else {
+    fb.innerHTML = '❌ Try again!';
+    fb.style.color = '#ef4444';
+    setTimeout(() => { if(!done.has(curr)) fb.innerHTML = ''; }, 1500);
+  }
+}
+function doTap(i, isGood) {
+  const fb = document.getElementById('fb');
+  if(isGood) {
+    tapDone.add(i);
+    const totalGood = slides[curr].items.filter(it => it.g).length;
+    if(tapDone.size === totalGood) {
+      done.add(curr);
+      render();
+    } else {
+      render();
+      document.getElementById('fb').innerHTML = '✅ Good job! Find more.';
+      document.getElementById('fb').style.color = '#22c55e';
+    }
+  } else {
+    fb.innerHTML = '❌ That hurts. Try a gentle choice.';
+    fb.style.color = '#ef4444';
+    setTimeout(() => { if(!done.has(curr)) fb.innerHTML = ''; }, 1500);
+  }
+}
+function nav(dir) {
+  if(dir === 1 && curr < slides.length - 1) { curr++; render(); }
+  else if(dir === -1 && curr > 0) { curr--; render(); }
+  else if(dir === 1 && curr === slides.length - 1) {
+    if('speechSynthesis' in window) speechSynthesis.cancel();
+    document.getElementById('content').innerHTML = '<div class="emoji" style="font-size:6rem">🏆</div><div class="title">Amazing job, Eamonn!</div><div class="text">You finished the story and made great choices!</div><button class="btn btn-primary" style="margin-top:2rem" onclick="restart()">Read Again 🔁</button>';
+    document.getElementById('nav').style.display = 'none';
+    document.getElementById('dots').style.display = 'none';
+  }
+}
+function restart() {
+  curr = 0; done.clear(); tapDone.clear(); render();
+  document.getElementById('nav').style.display = 'flex';
+  document.getElementById('dots').style.display = 'flex';
+}
+render();
+</script>
+</body>
+</html>
